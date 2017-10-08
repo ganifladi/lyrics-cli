@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# Time values
+SPEEDFACTOR=20;
+BPM=120;
+TEMP_TIME=$(echo "scale=2; 60 / $BPM" | bc);
+TIMEPERLINE=$(echo "$SPEEDFACTOR*$TEMP_TIME" | bc);
+
+# Output colors
+BLU="\e[01;34m";
+YLW="\e[01;33m";
+GRN="\e[01;32m";
+echo -e $BLU;
+
+# Out of my way, cursor!
+setterm -cursor off;
+
+# Loop counter
+COUNTER=0;
+
+# No matter where you are, find my directory
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
+
+# The lyrics
+STR=$(/bin/bash $DIR/lyrics mpv);
+# Show them all!
+#echo "$STR"
+# Lyrics line count
+#echo ${#array[@]}
+
+# The array which contains all output from lyrics script above
+IFS=$'\n:' read -d '' -r -a array <<< "$STR";
+
+###############################################################
+# Functions
+###############################################################
+function show_lyric () {
+    WIDTH=$(stty size | cut -d " " -f 2);               # width of the terminal
+    LENGTH=${#1};                                       # length of the string
+    printf "%"$((LENGTH+(WIDTH-LENGTH)/2))"s\n" "$1";   # print string padded to proper width (%Ws)
+}
+
+function next () {
+
+    clear
+
+    LINE_A=$(echo "$COUNTER" | bc);
+    let COUNTER=$COUNTER+1;
+    LINE_B=$(echo "$COUNTER" | bc);
+    let COUNTER=$COUNTER+1;
+    LINE_C=$(echo "$COUNTER" | bc);
+    let COUNTER=$COUNTER+1;
+
+    # Need some space above
+    echo -e "\n\n\n\n\n\n";
+
+    # Show ma lyrics
+    show_lyric "${array[$LINE_A]}"
+    show_lyric "${array[$LINE_B]}"
+    show_lyric "${array[$LINE_C]}"
+
+    # Need some space below
+    echo -e "\n\n"
+
+}
+
+###############################################################
+# Auto roll the lyrics
+###############################################################
+#while [ $COUNTER -lt ${#array[@]} ]; do
+#
+#    # Call the function!
+#    next;
+#    # Wait for the song ... it's rough but, better than nothing
+#    sleep $TIMEPERLINE
+
+#done
+
+###############################################################
+# Manually roll the lyrics
+###############################################################
+next;
+while true; do
+    read -s -n 1 key
+    if [[ $key = "" ]]; then
+        #echo 'You pressed enter!'
+        next;
+    fi
+done
+
+# Anyway, get my cursor back!
+setterm -cursor on;
+
+exit
