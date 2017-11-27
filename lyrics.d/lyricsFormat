@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# Set paths
+# Don't include the ending "/" with directories
+
+#Where to save timing files
+TIMEDIR="$HOME/.timing"
+LOGFILE="formatlog.txt"
+# Where is the lyrics program. Absolute path
+LYRICSPATH="$PWD/lyrics"
+echo -n > $LOGFILE
+# Default values
+# 0: don't save lyrics, 1: save without overwriting, 2: save overwriting
+SAVE=0
+# DEFAULT MUSIC DAEMON USED
+SERVICE="mpd"
+# If to record. Same values as SAVE
+REC=0
+# When the song finish
+ENDTIME=`mpc status | grep -E -o '/[[:digit:]]{1,2}:[[:digit:]]{2}' | tr -d '/:'`
 # Time values
 SPEEDFACTOR=20;
 BPM=120;
@@ -10,30 +28,86 @@ TIMEPERLINE=$(echo "$SPEEDFACTOR*$TEMP_TIME" | bc);
 BLU="\e[01;34m";
 YLW="\e[01;33m";
 GRN="\e[01;32m";
-echo -e $BLU;
+RED="\e[01;31m";
+# Set the default color
+DEFAULTCOL=$BLU
 
+# Read arguments
+
+for arg in $*; do
+    if [[ $arg = '-s' ]]; then
+        SAVE="-s"
+    elif [[ $arg = '-S' ]]; then
+        SAVE="-S"
+    elif [[ $arg = '-r' ]]; then
+        REC=1
+    elif [[ $arg = '-R' ]]; then
+        REC=2
+    elif [[ $arg = 'mpd' || $arg = 'mpv' || $arg = 'rhythmbox' || $arg = 'rbox' ]]; then
+        SERVICE=$arg
+    fi
+done
+echo -e "SAVE=$SAVE\nREC=$REC\nSERVICE=$SERVICE\n" >> $LOGFILE
 # Out of my way, cursor!
-setterm -cursor off;
 
 # Loop counter
 COUNTER=0;
 
 # No matter where you are, find my directory
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
-
+echo "Loading..."
 # The lyrics
-STR=$(/bin/bash $DIR/lyrics mpv);
+if [[ $SAVE != 0 ]]; then
+    STR=$(/bin/bash $LYRICSPATH $SAVE $SERVICE);
+    returnCode=$?
+else
+    STR=$(/bin/bash $LYRICSPATH $SERVICE);
+    returnCode=$?
+fi
+if [[ $returnCode != 0 ]]; then
+    echo "Error: lyrics fetching program exited with code $returnCode, probably there is no connection. Check the lyrics log file"
+    exit 1
+fi
 # Show them all!
 #echo "$STR"
 # Lyrics line count
 #echo ${#array[@]}
 
+ARTISTDIR=$TIMEDIR'/'`cat /tmp/songName | rev | cut -d '/' -f 2 | rev`
+TIMEFILE=$ARTISTDIR'/'`cat /tmp/songName | rev | cut -d '/' -f 1 | rev`
+mkdir -p $ARTISTDIR
+
+echo "ARTISTDIR=$ARTISTDIR" >> $LOGFILE
+echo "TIMEFILE=$TIMEFILE" >> $LOGFILE
+
+if [[ -f $TIMEFILE && $REC = 1 ]]; then
+    echo "Timefile in $timefile exists and REC($REC) = 1, setting REC=0" >> $LOGFILE
+    REC=0
+fi
+AUTO=true
+if [[ $REC = 0 && ! -f $TIMEFILE ]]; then
+    echo "REC($REC)=0 but $TIMEFILE doesn't exists, disabling auto mode" >> $LOGFILE
+    AUTO=false
+elif [[ $REC != 0 ]]; then
+    echo "REC($REC) is != 0; disabling auto mode" >> $LOGFILE
+    AUTO=false
+    echo -n > $TIMEFILE
+fi
 # The array which contains all output from lyrics script above
 IFS=$'\n:' read -d '' -r -a array <<< "$STR";
 
 ###############################################################
 # Functions
 ###############################################################
+function get_time () {
+    #get_time $SERVICE
+    if [[ $1 = 'mpd' ]]; then
+        echo `mpc status | grep -E -o '[[:digit:]]{1,2}:[[:digit:]]{2}/' | tr -d '/:'`
+    else
+        echo "ERROR: $1 not supported yet" >> $LOGFILE
+    fi
+}
+
 function show_lyric () {
     WIDTH=$(stty size | cut -d " " -f 2);               # width of the terminal
     LENGTH=${#1};                                       # length of the string
@@ -51,44 +125,84 @@ function next () {
     LINE_C=$(echo "$COUNTER" | bc);
     let COUNTER=$COUNTER+1;
 
+    if [[ $REC != 0 ]]; then
+        spaces=''
+        w=$(expr `stty size | cut -d " " -f 2` - 6)
+        for s in `seq $w`; do
+            spaces="$spaces "
+        done
+        printf "%b%b⬤  REC$DEFAULTCOL" "$RED" "$spaces"
+    else
     # Need some space above
-    echo -e "\n\n\n\n\n\n";
-
+        printf "%b" "$DEFAULTCOL";
+    fi
+    # Print newlines to center the text vertically
+    for s in `seq $(( $(stty size | cut -d " " -f 1) / 2 - 1 ))`; do
+        printf "\n"
+    done
     # Show ma lyrics
     show_lyric "${array[$LINE_A]}"
     show_lyric "${array[$LINE_B]}"
     show_lyric "${array[$LINE_C]}"
-
     # Need some space below
-    echo -e "\n\n"
+    #echo -e "\n\n"
+    if [[ "${array[`expr $LINE_A + 3`]}" = "" && "${array[`expr $LINE_B + 3`]}" = "" && "${array[`expr $LINE_C + 3`]}" = "" ]]; then
+        return 5
+    else
+        return 0
+    fi
 
 }
 
-###############################################################
-# Auto roll the lyrics
-###############################################################
-#while [ $COUNTER -lt ${#array[@]} ]; do
-#
-#    # Call the function!
-#    next;
-#    # Wait for the song ... it's rough but, better than nothing
-#    sleep $TIMEPERLINE
-
-#done
-
-###############################################################
-# Manually roll the lyrics
-###############################################################
+# Roll the lyrics
+setterm -cursor off;
 next;
-while true; do
-    read -s -n 1 key
-    if [[ $key = "" ]]; then
-        #echo 'You pressed enter!'
+stop=0
+if [[ $AUTO = true ]]; then
+    nextLine=1
+    while true; do
+        currTime=`get_time $SERVICE`
+        nextTime=`cat $TIMEFILE | sed "$nextLine"'!d'`
+        while [[ $currTime < $nextTime ]]; do
+            currTime=`get_time $SERVICE`
+            sleep 0.2
+        done
         next;
-    fi
-done
-
+        if [[ $? == 5 && $stop = 0 ]]; then
+            stop=1;
+        elif [[ $stop = 1 ]]; then
+            setterm -cursor on;
+            clear
+            exit 0
+        fi
+        nextLine=`expr $nextLine + 1`
+    done
+else
+    while true; do
+        read -s -n 1 key
+        if [[ $key = "" ]]; then
+            #echo 'You pressed enter!'
+            if [[ $REC != 0 && $stop = 0 ]]; then
+                echo `get_time $SERVICE` >> $TIMEFILE
+            fi
+            next;
+            if [[ $? == 5 && $stop = 0 ]]; then
+                if [[ $REC != 0 ]]; then
+                    #Check the time list is in chronological order, save it and exit
+                    echo $(($ENDTIME-1)) >> $TIMEFILE
+                    setterm -cursor on;
+                    exit 0
+                fi
+                stop=1;
+            elif [[ $stop = 1 ]]; then
+                setterm -cursor on;
+                clear
+                exit 0
+            fi
+        fi
+    done
+fi
 # Anyway, get my cursor back!
 setterm -cursor on;
 
-exit
+exit 0
