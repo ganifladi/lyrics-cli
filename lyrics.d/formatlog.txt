@@ -1,0 +1,7 @@
+SAVE=-S
+REC=1
+SERVICE=mpd
+
+ARTISTDIR=/home/guidofe/.timing/georgeezra
+TIMEFILE=/home/guidofe/.timing/georgeezra/cassyo.txt
+Timefile in  exists and REC(1) = 1, setting REC=0

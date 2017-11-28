@@ -80,18 +80,19 @@ function pathToDir () {
 function printLyrics() {
     # printLyrics RESULT SAVE FILENAME
     SUCCESS=0
+    # Replace some HTML character entities like &amp;
+    LYR=`echo "$1" | sed 's/\&amp;/\&/g' | sed 's/\&dollar;/$/g'`
     if [[ $2 != 0 ]]; then
         if [ $2 = "1" -a ! -e $3 -o $2 = "2" ]; then
             if [ ! -d `pathToDir $3` ]; then
                 mkdir `pathToDir $3`  
             fi
-            echo "$1" > $3
+            echo "$LYR" > $3
             SUCCESS=$?
         fi
     fi
     echo $3 >> $LOGFILE
-    #echo $3 | rev | cut -d '/' -f 1-2 --output-delimiter '/' | rev > /tmp/songName
-    echo "$1"
+    echo "$LYR"
     exit $SUCCESS
 }
 
@@ -460,8 +461,8 @@ elif [[ "$(echo $arg1 | grep -i 'http.*://.*azlyrics.com')" ]];then
 # Or a plyrics url
 ########################################
 elif [[ "$(echo $arg1 | grep 'http.*://.*plyrics.com' -i)" ]];then
+    echo `urlToPath "$arg1"` > /tmp/songName
     if [[ $SAVE != 2 && -f `urlToPath "$arg1"` ]]; then
-        echo `urlToPath "$arg1"` > /tmp/songName
         cat `urlToPath "$arg1"`
         exit $?
     else
@@ -477,8 +478,8 @@ elif [[ "$arg1" == 'mpv' ]]; then
     #echo "Artist: $ARTIST" >> $LOGFILE;
     #echo "TITLE: $TITLE" >> $LOGFILE;
     #Load the lirycs from file if it exists and if the option -S is not set
+    echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
     if [[ $SAVE != 2 && -f `metaToPath "$ARTIST" "$TITLE"` ]]; then
-        echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
         cat `metaToPath "$ARTIST" "$TITLE"`
         exit $?
     else
@@ -494,9 +495,9 @@ elif [[ "$arg1" == 'mpd' ]]; then
     echo "Artist: $ARTIST" >> $LOGFILE;
     echo "TITLE: $TITLE" >> $LOGFILE;
 
+    echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
     #Load the lirycs from file if it exists and if the option -S is not set
     if [[ $SAVE != 2 && -f `metaToPath "$ARTIST" "$TITLE"` ]]; then
-        echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
         cat `metaToPath "$ARTIST" "$TITLE"`
         exit $?
     else
@@ -513,9 +514,9 @@ elif [[ "$arg1" == 'rhythmbox' || "$arg1" == 'rbox' ]]; then
     #echo "Artist: $ARTIST" >> $LOGFILE;
     #echo "TITLE: $TITLE" >> $LOGFILE;
 
+    echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
     #Load the lirycs from file if it exists and if the option -S is not set
     if [[ $SAVE != 2 && -f `metaToPath "$ARTIST" "$TITLE"` ]]; then
-        echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
         cat `metaToPath "$ARTIST" "$TITLE"`
         exit $?
     else
@@ -532,9 +533,9 @@ elif [[ "$arg1" == 'spotify' ]]; then
     #echo "Artist: $ARTIST" >> $LOGFILE;
     #echo "Title: $TITLE" >> $LOGFILE;
 
+    echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
     #Load the lirycs from file if it exists and if the option -S is not set
     if [[ $SAVE != 2 && -f `metaToPath "$ARTIST" "$TITLE"` ]]; then
-        echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
         cat `metaToPath "$ARTIST" "$TITLE"`
         exit $?
     else
@@ -546,9 +547,9 @@ elif [[ "$arg1" == 'spotify' ]]; then
 ########################################
 elif [[ -n "$arg1" && -n "$arg2" ]];then
     
+    echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
     #Load the lirycs from file if it exists and if the option -S is not set
     if [[ $SAVE != 2 && -f `metaToPath "$ARTIST" "$TITLE"` ]]; then
-        echo `metaToPath "$ARTIST" "$TITLE"` > /tmp/songName
         cat `metaToPath "$arg1" "$arg2"`
         exit $?
     else
