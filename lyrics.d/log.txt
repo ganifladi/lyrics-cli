@@ -1,0 +1,15 @@
+
+
+
+########### Tue Nov 28 14:39:47 CET 2017 ##########
+SAVE=2|
+Arg1=mpd|
+Arg2=|
+Looking up title by mpd artist and title...
+Artist: George Ezra
+TITLE: Cassy O'
+Trying azlyrics
+azlyrics George Ezra Cassy O' lyrics
+Duck call exited with code 0
+Duck url:  https://www.azlyrics.com/lyrics/georgeezra/cassyo.html
+/home/guidofe/.lyrics/georgeezra/cassyo.txt
